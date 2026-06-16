@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>T-Shirt Shop</title>
+
+<style>
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+body {
+  margin: 0;
+  font-family: Arial;
+  background: white;
+}
+
+img {
+  -webkit-user-drag: none;
+}
+
+header {
+  background: white;
+  color: #ff46A2;
+  padding: 2rem 2rem;
+}
+
+nav a {
+  color: #ff46A2;
+  margin-left: 1rem;
+  text-decoration: none;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: text-shadow 0.2s ease, transform 0.2s ease;
+}
+
+nav a:hover {
+  text-shadow: 0 0 8px #ff46A2, 0 0 16px rgba(255, 70, 162, 0.6);
+  transform: translateY(-1px);
+}
+
+h1 {
+  text-align: center;
+}
+
+.stage {
+  width: 100vw;
+  min-height: 100vh;
+  background-image: url("shopbg.png");
+  background-size: cover;
+  background-position: center;
+  padding: 4rem 2rem;
+  box-sizing: border-box;
+}
+
+.products {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.product-card {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.cart {
+  position: fixed;
+  bottom: 220px;
+  right: 30px;
+  width: 350px;
+  height: 280px;
+  z-index: 20;
+}
+
+.cart img {
+  position: absolute;
+  width: 100%;
+  left: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.cart-back { z-index: 1; }
+.cart-front { z-index: 5; }
+
+.cart-items {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cart-item {
+  position: absolute;
+  transition:
+    transform 1.5s cubic-bezier(.2,.8,.2,1),
+    top 1.5s cubic-bezier(.2,.8,.2,1),
+    width 0.6s cubic-bezier(.2,.8,.2,1);
+}
+
+/* ---------- MODAL ---------- */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 0, 128, 0.6);
+  backdrop-filter: blur(4px);
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.modal-content {
+  max-width: 500px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.carousel img {
+  width: 100%;
+  cursor: grab;
+}
+
+/* ---------- SIZE SELECTOR ---------- */
+.size-selector {
+  margin: 0.5rem 0 1rem;
+  font-size: 22px;
+}
+
+.size-btn {
+  cursor: pointer;
+  padding: 0 10px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+<nav>
+  <a href="index.html">Home</a>
+  <a href="contact.html">Contact</a>
+  <a href="shop.html">Shop</a>
+  <a href="cart.html">Cart</a>
+</nav>
+</header>
+
+<h1>Click on shirt, and select size. Drag into the cart.</h1>
+
+<div class="stage">
+  <div class="products">
+    <div class="product-card" data-index="0"><img src="tshirt1.png"></div>
+    <div class="product-card" data-index="1"><img src="tshirt2.png"></div>
+    <div class="product-card" data-index="2"><img src="tshirt3.png"></div>
+    <div class="product-card" data-index="3"><img src="tshirt4.png"></div>
+    <div class="product-card" data-index="4"><img src="tshirt5.png"></div>
+    <div class="product-card" data-index="5"><img src="tshirt6.png"></div>
+    <div class="product-card" data-index="6"><img src="tshirt7.png"></div>
+    <div class="product-card" data-index="7"><img src="tshirt8.png"></div>
+    <div class="product-card" data-index="8"><img src="tshirt9.png"></div>
+    <div class="product-card" data-index="9"><img src="tshirt10.png"></div>
+    <div class="product-card" data-index="10"><img src="tshirt11.png"></div>
+    <div class="product-card" data-index="11"><img src="tshirt12.png"></div>
+  </div>
+</div>
+
+<div class="cart" id="cart">
+  <img src="cartback.png" class="cart-back">
+  <div class="cart-items" id="cartItems"></div>
+  <img src="cartfront.png" class="cart-front">
+</div>
+
+<div id="modal" class="modal">
+  <div class="modal-content">
+    <span class="close" onclick="closeModal()">&times;</span>
+    <h2 id="modal-title"></h2>
+
+    <div class="size-selector">
+      <span class="size-btn" onclick="changeSize(-1)">&lt;</span>
+      <span id="size-display">XL</span>
+      <span class="size-btn" onclick="changeSize(1)">&gt;</span>
+    </div>
+
+    <div class="carousel">
+      <img id="carousel-img">
+    </div>
+  </div>
+</div>
+
+<script>
+const sizes = ["S", "M", "L", "XL"];
+let currentSizeIndex = 3;
+let activeProductIndex = null;
+
+const products = Array.from({ length: 12 }, (_, i) => ({
+  name: `Fake Shirt #${i + 1}`,
+  price: 25,
+  image: `tshirt${i + 1}.png`,
+  size: "XL"
+}));
+
+const cards = document.querySelectorAll(".product-card");
+const cart = document.getElementById("cart");
+const cartItems = document.getElementById("cartItems");
+const modalImg = document.getElementById("carousel-img");
+
+/* ---------- CART CLICK NAV ---------- */
+let cartMoved = false;
+
+cart.addEventListener("mousedown", () => {
+  cartMoved = false;
+});
+
+cart.addEventListener("mousemove", () => {
+  cartMoved = true;
+});
+
+cart.addEventListener("mouseup", () => {
+  if (!cartMoved) {
+    window.location.href = "cart.html";
+  }
+});
+
+/* ---------- GRID DRAG ---------- */
+cards.forEach((card, i) => {
+  let startX, startY, moved = false;
+
+  card.addEventListener("mousedown", e => {
+    startX = e.clientX;
+    startY = e.clientY;
+    moved = false;
+
+    function move(ev) {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+    }
+
+    function up(ev) {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      card.style.transform = "";
+
+      const rect = cart.getBoundingClientRect();
+      const inCart =
+        ev.clientX > rect.left &&
+        ev.clientX < rect.right &&
+        ev.clientY > rect.top &&
+        ev.clientY < rect.bottom;
+
+      if (moved && inCart) dropIntoCart(products[i]);
+      else if (!moved) openModal(i);
+    }
+
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  });
+});
+
+/* ---------- MODAL DRAG ---------- */
+modalImg.addEventListener("mousedown", e => {
+  if (activeProductIndex === null) return;
+
+  let startX = e.clientX;
+  let startY = e.clientY;
+  let moved = false;
+
+  function move(ev) {
+    const dx = ev.clientX - startX;
+    const dy = ev.clientY - startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+    modalImg.style.transform = `translate(${dx}px, ${dy}px)`;
+  }
+
+  function up(ev) {
+    document.removeEventListener("mousemove", move);
+    document.removeEventListener("mouseup", up);
+    modalImg.style.transform = "";
+
+    const rect = cart.getBoundingClientRect();
+    const inCart =
+      ev.clientX > rect.left &&
+      ev.clientX < rect.right &&
+      ev.clientY > rect.top &&
+      ev.clientY < rect.bottom;
+
+    if (moved && inCart) dropIntoCart(products[activeProductIndex]);
+  }
+
+  document.addEventListener("mousemove", move);
+  document.addEventListener("mouseup", up);
+});
+
+/* ---------- SIZE ---------- */
+function changeSize(dir) {
+  currentSizeIndex = (currentSizeIndex + dir + sizes.length) % sizes.length;
+  document.getElementById("size-display").innerText = sizes[currentSizeIndex];
+  if (activeProductIndex !== null)
+    products[activeProductIndex].size = sizes[currentSizeIndex];
+}
+
+/* ---------- CART DROP (RESTORED) ---------- */
+function dropIntoCart(product) {
+  const img = document.createElement("img");
+  img.src = product.image;
+  img.className = "cart-item";
+  cartItems.appendChild(img);
+
+  img.onload = () => {
+    const w = img.width * 0.6;
+    img.style.width = `${w}px`;
+    img.style.left = `${(cart.offsetWidth - w) / 2}px`;
+    img.style.top = `-${w}px`;
+
+    const dropIndex = cartItems.children.length - 1;
+    const baseY = 160 + Math.min(dropIndex, 6) * 10;
+
+    const wobbleStart = (Math.random() - 0.5) * 10;
+    const wobbleEnd = (Math.random() - 0.5) * 20;
+
+    requestAnimationFrame(() => {
+      img.style.transition = "transform 0.3s ease-out";
+      img.style.transform = `translateY(${baseY - 25}px) rotate(${wobbleStart}deg)`;
+
+      setTimeout(() => {
+        img.style.transition = "transform 0.2s ease-in-out";
+        img.style.transform = `translateY(${baseY - 5}px) rotate(${wobbleStart}deg)`;
+
+        setTimeout(() => {
+          const wobbleSteps = [];
+          const steps = 2 + Math.floor(Math.random() * 3);
+          for (let j = 0; j < steps; j++) {
+            wobbleSteps.push((Math.random() - 0.5) * wobbleEnd);
+          }
+          wobbleSteps.push((Math.random() - 1.0) * wobbleEnd);
+
+          let i = 0;
+          function wobbleStep() {
+            if (i >= wobbleSteps.length) return;
+            img.style.transition = "transform 0.25s ease-in-out";
+            img.style.transform = `translateY(${baseY}px) rotate(${wobbleSteps[i]}deg)`;
+            i++;
+            setTimeout(wobbleStep, 250);
+          }
+          wobbleStep();
+        }, 200);
+      }, 100);
+    });
+  };
+
+  const cartData = JSON.parse(localStorage.getItem("cart")) || [];
+  cartData.push({ image: product.image, size: product.size });
+  localStorage.setItem("cart", JSON.stringify(cartData));
+}
+
+/* ---------- MODAL ---------- */
+function openModal(i) {
+  activeProductIndex = i;
+  currentSizeIndex = sizes.indexOf(products[i].size);
+  document.getElementById("size-display").innerText = sizes[currentSizeIndex];
+  document.getElementById("modal-title").innerText =
+    `${products[i].name} — $${products[i].price}`;
+  modalImg.src = products[i].image;
+  document.getElementById("modal").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("modal").style.display = "none";
+}
+</script>
+
+</body>
+</html>

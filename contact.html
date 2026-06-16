@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+  margin: 0;
+  font-family: Arial;
+  min-height: 100vh;
+  background-image: url("patternbg.png");
+  background-size: cover;
+  overflow: hidden;
+}
+
+header {
+  background: white;
+  color: #ff46A2;
+  padding: 2rem 2rem;
+}
+
+nav a {
+  color: #ff46A2;
+  margin-left: 1rem;
+  text-decoration: none;
+  font-weight: bold;
+  text-transform: uppercase;
+  transition: text-shadow 0.2s ease, transform 0.2s ease;
+}
+
+nav a:hover {
+  text-shadow: 0 0 8px #ff46A2, 0 0 16px rgba(255, 70, 162, 0.6);
+  transform: translateY(-1px);
+}
+
+h1 {
+  text-align: center;
+}
+
+svg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 8;
+}
+
+#cord {
+  fill: none;
+  stroke: #D30000;
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#phone {
+  position: absolute;
+  width: 240px;
+  cursor: grab;
+  user-select: none;
+  z-index: 9;
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+#phone:active {
+  cursor: grabbing;
+}
+
+#phonebase {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 250px;
+  z-index: 7;
+  pointer-events: none;
+}
+</style>
+</head>
+
+<body>
+<header>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="contact.html">Contact</a>
+    <a href="shop.html">Shop</a>
+    <a href="cart.html">Cart</a>
+  </nav>
+</header>
+
+<h1>Drag phone to ear to contact.</h1>
+
+<svg aria-hidden="true">
+  <path id="cord"></path>
+</svg>
+
+<img id="phone" src="phone.png" alt="Phone" draggable="false">
+<img id="phonebase" src="phonebase.png" alt="Phone Base">
+
+<script>
+window.addEventListener("load", () => {
+
+  const SEGMENTS = 500;
+  const SEGMENT_LENGTH = 0.7;
+  const GRAVITY = 0.8;
+  const DAMPING = 0.97;
+
+  const COIL_RADIUS = 9;
+  const COILS = 50;
+  const DEPTH = 6;
+
+  const MAX_END_STRETCH = 60; // Hard limit on ends
+  const STRAIGHT_ENDS = 60;   // Number of rigid points at each end
+
+  const BASE_OFFSET = { x: 0.45, y: 0.97 };
+  const PHONE_OFFSET = { x: 0.45, y: 0.95 };
+
+  const phone = document.getElementById("phone");
+  const phonebase = document.getElementById("phonebase");
+  const cord = document.getElementById("cord");
+
+  let phonePos = { x: window.innerWidth/2 - 120, y: 200 };
+  let phoneVel = { x:0, y:0 };
+  let isMouseDown = false;
+  let offset = { x:0, y:0 };
+
+  let points = [];
+  let prevPoints = [];
+
+  // ===== INIT ROPE =====
+  function initRope() {
+    const baseRect = phonebase.getBoundingClientRect();
+    const anchorX = baseRect.left + baseRect.width * BASE_OFFSET.x;
+    const anchorY = baseRect.top + baseRect.height * BASE_OFFSET.y;
+    const phoneX = phonePos.x + phone.offsetWidth * PHONE_OFFSET.x;
+    const phoneY = phonePos.y + phone.offsetHeight * PHONE_OFFSET.y;
+
+    points = [];
+    prevPoints = [];
+    for(let i=0;i<SEGMENTS;i++){
+      const t = i/(SEGMENTS-1);
+      const x = anchorX*(1-t) + phoneX*t;
+      const y = anchorY*(1-t) + phoneY*t;
+      points.push({x,y,z:0});
+      prevPoints.push({x,y,z:0});
+    }
+  }
+  initRope();
+
+  // ===== DRAG =====
+  phone.addEventListener("mousedown", e=>{
+    e.preventDefault();
+    isMouseDown = true;
+    offset.x = e.clientX - phonePos.x;
+    offset.y = e.clientY - phonePos.y;
+  });
+
+  window.addEventListener("mouseup", ()=>isMouseDown=false);
+  window.addEventListener("mousemove", e=>{
+    if(!isMouseDown) return;
+    phonePos.x = e.clientX - offset.x;
+    phonePos.y = e.clientY - offset.y;
+    phoneVel.x = 0;
+    phoneVel.y = 0;
+  });
+
+  // ===== PHYSICS =====
+  function updatePhysics() {
+    const baseRect = phonebase.getBoundingClientRect();
+    const baseAnchor = {
+      x: baseRect.left + baseRect.width * BASE_OFFSET.x,
+      y: baseRect.top + baseRect.height * BASE_OFFSET.y
+    };
+    points[0].x = baseAnchor.x;
+    points[0].y = baseAnchor.y;
+
+    const end = points.length-1;
+
+    // move internal points (except straight ends)
+    for(let i=STRAIGHT_ENDS;i<end-STRAIGHT_ENDS;i++){
+      const p = points[i];
+      const prev = prevPoints[i];
+      const vx = (p.x-prev.x)*DAMPING;
+      const vy = (p.y-prev.y)*DAMPING + GRAVITY;
+      const vz = (p.z-prev.z)*DAMPING;
+      prev.x=p.x; prev.y=p.y; prev.z=p.z;
+      p.x += vx; p.y += vy; p.z += vz;
+    }
+
+    // constraints with hard limits on straight ends
+    for(let k=0;k<400;k++){
+      for(let i=0;i<end;i++){
+        const p1=points[i];
+        const p2=points[i+1];
+        let dx=p2.x-p1.x;
+        let dy=p2.y-p1.y;
+        let dz=p2.z-p1.z;
+        let dist=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+        let diff=(dist-SEGMENT_LENGTH)/dist;
+
+        // hard limit at ends
+        if(i<STRAIGHT_ENDS || i>=end-STRAIGHT_ENDS){
+          dist = Math.min(dist, SEGMENT_LENGTH + MAX_END_STRETCH);
+          diff = (dist-SEGMENT_LENGTH)/dist;
+        }
+
+        if(i!==0){
+          p1.x += dx*0.5*diff;
+          p1.y += dy*0.5*diff;
+          p1.z += dz*0.5*diff;
+        }
+        p2.x -= dx*0.5*diff;
+        p2.y -= dy*0.5*diff;
+        p2.z -= dz*0.5*diff;
+      }
+    }
+
+    // pin last point to phone (direct anchor, no catch-up)
+    points[end].x = phonePos.x + phone.offsetWidth * PHONE_OFFSET.x;
+    points[end].y = phonePos.y + phone.offsetHeight * PHONE_OFFSET.y;
+    points[end].z = 0;
+
+    // pin first point to phonebase
+    points[0].x = baseAnchor.x;
+    points[0].y = baseAnchor.y;
+    points[0].z = 0;
+  }
+
+  // ===== DRAW =====
+  function drawCord(){
+    let d=`M ${points[0].x} ${points[0].y}`;
+    for(let i=1;i<points.length;i++){
+      const p = points[i];
+      const prev = points[i-1];
+      if(i<STRAIGHT_ENDS || i>points.length-STRAIGHT_ENDS){
+        d+=` L ${p.x} ${p.y}`;
+        continue;
+      }
+      const dx = p.x-prev.x;
+      const dy = p.y-prev.y;
+      const len = Math.hypot(dx,dy)||1;
+      const nx = -dy/len;
+      const ny = dx/len;
+      const phase = (i/points.length)*COILS*Math.PI*2;
+      const x = p.x + nx*Math.cos(phase)*COIL_RADIUS;
+      const y = p.y + ny*Math.cos(phase)*COIL_RADIUS + Math.sin(phase)*DEPTH;
+      d+=` L ${x} ${y}`;
+    }
+    cord.setAttribute("d",d);
+  }
+
+  function updatePhone(){
+    phone.style.left = phonePos.x+'px';
+    phone.style.top = phonePos.y+'px';
+  }
+
+  function animate(){
+    updatePhysics();
+    drawCord();
+    updatePhone();
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+});
+</script>
+
+</body>
+</html>
