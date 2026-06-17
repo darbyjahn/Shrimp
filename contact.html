@@ -9,7 +9,7 @@ body {
   margin: 0;
   font-family: Arial;
   min-height: 100vh;
-  background-image: url("patternbg.png");
+  background-image: url("media/patternbg.png");
   background-size: cover;
 }
 
@@ -181,6 +181,38 @@ svg {
   font-size: 0.9rem;
   white-space: nowrap;
 }
+
+/* ---------- MOBILE SAFETY + SCALE ---------- */
+@media (max-width: 768px) {
+  #phone {
+    width: 140px !important;
+  }
+
+  #phonebase {
+    width: 160px !important;
+    top: 10px;
+    right: 10px;
+  }
+
+  #guy,
+  #guyarm {
+    height: 520px !important;
+  }
+
+  h2 {
+    font-size: 1rem;
+    padding: 0 10px;
+  }
+
+  nav {
+    font-size: 0.85rem;
+  }
+}
+
+/* prevents iOS scroll interference */
+#phone {
+  touch-action: none;
+}
 </style>
 </head>
 
@@ -202,11 +234,11 @@ svg {
   <path id="cord"></path>
 </svg>
 
-<img id="phone" src="phone.png" alt="Phone" draggable="false">
-<img id="phonebase" src="phonebase.png" alt="Phone Base">
+<img id="phone" src="media/phone.png" alt="Phone" draggable="false">
+<img id="phonebase" src="media/phonebase.png" alt="Phone Base">
 
-<img id="guy" src="guy.png" alt="">
-<img id="guyarm" src="guyarm.png" alt="">
+<img id="guy" src="media/guy.png" alt="">
+<img id="guyarm" src="media/guyarm.png" alt="">
 <div id="earAnchor"></div>
 
 </div>
@@ -285,33 +317,56 @@ contactBlock.style.display = "none";
   const baseRect = phonebase.getBoundingClientRect();
   phonePos.x = baseRect.left + baseRect.width/2 - phone.offsetWidth/2;
   phonePos.y = baseRect.top + baseRect.height/2 - phone.offsetHeight/2;
-  phone.src = "phoneback.png";
+  phone.src = "media/phoneback.png";
 
   initRope();
   updateResponsiveScale();
 
-  // ===== DRAG EVENTS =====
-  phone.addEventListener("mousedown", e=>{
-    e.preventDefault();
-    grabbedByGuy = false;
-    guyarm.style.display = "none";
-    isMouseDown = true;
-    docked = false;
-    dockingProgress = 0;
-    phoneRotation = 0;
-    phone.src = "phone.png";
-    offset.x = e.clientX - phonePos.x;
-    offset.y = e.clientY - phonePos.y;
-  });
+// ===== MOBILE + DESKTOP DRAG FIX (SMOOTH) =====
+let pointerId = null;
 
-  window.addEventListener("mouseup", ()=>{ isMouseDown = false; });
-  window.addEventListener("mousemove", e=>{
-    if(!isMouseDown) return;
-    phonePos.x = e.clientX - offset.x;
-    phonePos.y = e.clientY - offset.y;
-    phoneVel.x = 0;
-    phoneVel.y = 0;
-  });
+phone.addEventListener("pointerdown", (e) => {
+  e.preventDefault();
+
+  pointerId = e.pointerId;
+  phone.setPointerCapture(pointerId);
+
+  grabbedByGuy = false;
+  guyarm.style.display = "none";
+  isMouseDown = true;
+  docked = false;
+  dockingProgress = 0;
+  phoneRotation = 0;
+  phone.src = "phone.png";
+
+  offset.x = e.clientX - phonePos.x;
+  offset.y = e.clientY - phonePos.y;
+
+  // stop scroll on mobile
+  document.body.style.overflow = "hidden";
+});
+
+phone.addEventListener("pointermove", (e) => {
+  if (!isMouseDown || e.pointerId !== pointerId) return;
+
+  phonePos.x = e.clientX - offset.x;
+  phonePos.y = e.clientY - offset.y;
+
+  phoneVel.x = 0;
+  phoneVel.y = 0;
+});
+
+function endDrag(e) {
+  if (e.pointerId !== pointerId) return;
+
+  isMouseDown = false;
+  pointerId = null;
+
+  document.body.style.overflow = "";
+}
+
+phone.addEventListener("pointerup", endDrag);
+phone.addEventListener("pointercancel", endDrag);
 
   animate();
 });
@@ -384,7 +439,7 @@ function updatePhysics() {
     phonePos.y = baseCenter.y - phone.offsetHeight/2;
     phoneVel.x = 0;
     phoneVel.y = 0;
-    phone.src = "phoneback.png";
+    phone.src = "media/phoneback.png";
   } else if(!isMouseDown && !grabbedByGuy){
     // gravity + damping when free
     phoneVel.y += GRAVITY;
