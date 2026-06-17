@@ -9,15 +9,28 @@ body {
   margin: 0;
   font-family: Arial;
   min-height: 100vh;
-  background-image: url("patternbg.png");
+  background-image: url("bg.png");
   background-size: cover;
-  overflow: hidden;
 }
 
+/* ---------- HEADER ---------- */
 header {
-  background: white;
+  background: transparent;
   color: #ff46A2;
-  padding: 2rem 2rem;
+  padding: 1rem 1rem;
+}
+
+h1 {
+  text-align: center;
+  font-size: 3rem;          
+  font-weight: 1000;
+ -webkit-text-stroke: 3px white;
+}
+
+
+/* ---------- NAV ---------- */
+nav {
+  text-align: center;
 }
 
 nav a {
@@ -30,12 +43,13 @@ nav a {
 }
 
 nav a:hover {
-  text-shadow: 0 0 8px #ff46A2, 0 0 16px rgba(255, 70, 162, 0.6);
+  text-shadow: 0 0 8px #E86100, 0 0 16px rgba(255, 70, 162, 0.6);
   transform: translateY(-1px);
 }
 
-h1 {
+h2 {
   text-align: center;
+  font-weight: bold;
 }
 
 svg {
@@ -57,7 +71,7 @@ svg {
 }
 
 #phone {
-  position: absolute;
+  position: fixed;
   width: 240px;
   cursor: grab;
   user-select: none;
@@ -78,6 +92,95 @@ svg {
   z-index: 7;
   pointer-events: none;
 }
+
+#guy{
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 900px;
+}
+
+#guyarm{
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 900px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+#earAnchor{
+  position:fixed;
+  width:20px;
+  height:20px;
+  pointer-events:none;
+}
+
+/* FORM */
+.contact-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  width: 100%;
+}
+
+.content-block {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+
+  background: transparent;
+  border-radius: 0;
+
+  padding: 3rem;
+  z-index: 20;
+  max-width: 600px;
+  width: 90%;
+}
+
+.contact-form {
+  display: flex;
+  flex-direction: column;
+
+  gap: 1.5rem;             
+  width: 100%;
+}
+
+.contact-form input,
+.contact-form textarea {
+  width: 100%;
+  padding: 1rem;          
+  font-size: 1rem;
+  border: 1px solid #999;
+  background: rgba(255,255,255,0.85);
+  box-sizing: border-box;
+}
+
+.contact-form textarea {
+  height: 180px;           
+}
+
+/* BUTTON */
+.contact-form button {
+  padding: .5rem 1.4rem;
+  border: 1px solid #000;
+  background: none;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: all 0.3s ease;
+}
+.contact-form button:hover { background: rgba(0,0,0,0.1); }
+
+/* CHECKMARK */
+#sentCheck {
+  display: none;
+  margin-left: 10px;
+  color: green;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
 </style>
 </head>
 
@@ -91,7 +194,9 @@ svg {
   </nav>
 </header>
 
-<h1>Drag phone to ear to contact.</h1>
+<h2>Drag phone to ear to contact.</h2>
+
+<div id="scene">
 
 <svg aria-hidden="true">
   <path id="cord"></path>
@@ -100,65 +205,106 @@ svg {
 <img id="phone" src="phone.png" alt="Phone" draggable="false">
 <img id="phonebase" src="phonebase.png" alt="Phone Base">
 
+<img id="guy" src="guy.png" alt="">
+<img id="guyarm" src="guyarm.png" alt="">
+<div id="earAnchor"></div>
+
+</div>
+
+<div class="content-block">
+  <form id="contactForm" class="contact-form">
+    <input type="text" name="name" placeholder="Name" required>
+    <input type="email" name="email" placeholder="Email address *" required>
+    <textarea name="message" placeholder="Your message" required></textarea>
+    <button type="submit">Send</button>
+    <span id="sentCheck">✓ Message sent</span>
+  </form>
+</div>
+
 <script>
+let grabbedByGuy = false;
+let phoneRotation = 0;
+const EAR_ROTATION = 10;
+
+let contactBlock;
+
+// ===== SETTINGS =====
+const SEGMENTS = 500;
+const SEGMENT_LENGTH = 0.7;
+const GRAVITY = 0.9;
+const DAMPING = 0.97;
+const STRAIGHT_SEGMENTS_BASE = 60;
+
+const TAIL_SEGMENTS = 10;
+const TAIL_STIFFNESS = 0.2;
+
+const COIL_RADIUS_BASE = 15;
+const COILS = 50;
+const DEPTH_BASE = 6;
+
+let COIL_RADIUS = COIL_RADIUS_BASE;
+let DEPTH = DEPTH_BASE;
+
+const DOCK_RADIUS = 55;
+const DOCK_LERP = 0.16;
+
+let BASE_CORD_OFFSET = { x: 0.45, y: 0.97 };
+let PHONE_CORD_OFFSET_FRONT = { x: 0.45, y: 0.95 };
+let PHONE_CORD_OFFSET_BACK  = { x: 0.45, y: 0.95 };
+
+let SCALE = 1;
+
+// ===== ELEMENTS =====
+let guy, guyarm, earAnchor, phone, phonebase, cord;
+
+// ===== STATE =====
+let phonePos = { x: 0, y: 0 };
+let phoneVel = { x: 0, y: 0 };
+let isMouseDown = false;
+let offset = { x:0, y:0 };
+let docked = true;
+let dockingProgress = 0;
+
+let points = [];
+let prevPoints = [];
+
 window.addEventListener("load", () => {
+  guy = document.getElementById("guy");
+  guyarm = document.getElementById("guyarm");
+  earAnchor = document.getElementById("earAnchor");
+  phone = document.getElementById("phone");
+  phonebase = document.getElementById("phonebase");
+  cord = document.getElementById("cord");
 
-  const SEGMENTS = 500;
-  const SEGMENT_LENGTH = 0.7;
-  const GRAVITY = 0.8;
-  const DAMPING = 0.97;
+contactBlock = document.querySelector(".content-block");
+contactBlock.style.display = "none";
 
-  const COIL_RADIUS = 9;
-  const COILS = 50;
-  const DEPTH = 6;
+  guyarm.style.display = "none";
 
-  const MAX_END_STRETCH = 60; // Hard limit on ends
-  const STRAIGHT_ENDS = 60;   // Number of rigid points at each end
+  // initialize phone on base
+  const baseRect = phonebase.getBoundingClientRect();
+  phonePos.x = baseRect.left + baseRect.width/2 - phone.offsetWidth/2;
+  phonePos.y = baseRect.top + baseRect.height/2 - phone.offsetHeight/2;
+  phone.src = "phoneback.png";
 
-  const BASE_OFFSET = { x: 0.45, y: 0.97 };
-  const PHONE_OFFSET = { x: 0.45, y: 0.95 };
-
-  const phone = document.getElementById("phone");
-  const phonebase = document.getElementById("phonebase");
-  const cord = document.getElementById("cord");
-
-  let phonePos = { x: window.innerWidth/2 - 120, y: 200 };
-  let phoneVel = { x:0, y:0 };
-  let isMouseDown = false;
-  let offset = { x:0, y:0 };
-
-  let points = [];
-  let prevPoints = [];
-
-  // ===== INIT ROPE =====
-  function initRope() {
-    const baseRect = phonebase.getBoundingClientRect();
-    const anchorX = baseRect.left + baseRect.width * BASE_OFFSET.x;
-    const anchorY = baseRect.top + baseRect.height * BASE_OFFSET.y;
-    const phoneX = phonePos.x + phone.offsetWidth * PHONE_OFFSET.x;
-    const phoneY = phonePos.y + phone.offsetHeight * PHONE_OFFSET.y;
-
-    points = [];
-    prevPoints = [];
-    for(let i=0;i<SEGMENTS;i++){
-      const t = i/(SEGMENTS-1);
-      const x = anchorX*(1-t) + phoneX*t;
-      const y = anchorY*(1-t) + phoneY*t;
-      points.push({x,y,z:0});
-      prevPoints.push({x,y,z:0});
-    }
-  }
   initRope();
+  updateResponsiveScale();
 
-  // ===== DRAG =====
+  // ===== DRAG EVENTS =====
   phone.addEventListener("mousedown", e=>{
     e.preventDefault();
+    grabbedByGuy = false;
+    guyarm.style.display = "none";
     isMouseDown = true;
+    docked = false;
+    dockingProgress = 0;
+    phoneRotation = 0;
+    phone.src = "phone.png";
     offset.x = e.clientX - phonePos.x;
     offset.y = e.clientY - phonePos.y;
   });
 
-  window.addEventListener("mouseup", ()=>isMouseDown=false);
+  window.addEventListener("mouseup", ()=>{ isMouseDown = false; });
   window.addEventListener("mousemove", e=>{
     if(!isMouseDown) return;
     phonePos.x = e.clientX - offset.x;
@@ -167,106 +313,243 @@ window.addEventListener("load", () => {
     phoneVel.y = 0;
   });
 
-  // ===== PHYSICS =====
-  function updatePhysics() {
-    const baseRect = phonebase.getBoundingClientRect();
-    const baseAnchor = {
-      x: baseRect.left + baseRect.width * BASE_OFFSET.x,
-      y: baseRect.top + baseRect.height * BASE_OFFSET.y
-    };
-    points[0].x = baseAnchor.x;
-    points[0].y = baseAnchor.y;
-
-    const end = points.length-1;
-
-    // move internal points (except straight ends)
-    for(let i=STRAIGHT_ENDS;i<end-STRAIGHT_ENDS;i++){
-      const p = points[i];
-      const prev = prevPoints[i];
-      const vx = (p.x-prev.x)*DAMPING;
-      const vy = (p.y-prev.y)*DAMPING + GRAVITY;
-      const vz = (p.z-prev.z)*DAMPING;
-      prev.x=p.x; prev.y=p.y; prev.z=p.z;
-      p.x += vx; p.y += vy; p.z += vz;
-    }
-
-    // constraints with hard limits on straight ends
-    for(let k=0;k<400;k++){
-      for(let i=0;i<end;i++){
-        const p1=points[i];
-        const p2=points[i+1];
-        let dx=p2.x-p1.x;
-        let dy=p2.y-p1.y;
-        let dz=p2.z-p1.z;
-        let dist=Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
-        let diff=(dist-SEGMENT_LENGTH)/dist;
-
-        // hard limit at ends
-        if(i<STRAIGHT_ENDS || i>=end-STRAIGHT_ENDS){
-          dist = Math.min(dist, SEGMENT_LENGTH + MAX_END_STRETCH);
-          diff = (dist-SEGMENT_LENGTH)/dist;
-        }
-
-        if(i!==0){
-          p1.x += dx*0.5*diff;
-          p1.y += dy*0.5*diff;
-          p1.z += dz*0.5*diff;
-        }
-        p2.x -= dx*0.5*diff;
-        p2.y -= dy*0.5*diff;
-        p2.z -= dz*0.5*diff;
-      }
-    }
-
-    // pin last point to phone (direct anchor, no catch-up)
-    points[end].x = phonePos.x + phone.offsetWidth * PHONE_OFFSET.x;
-    points[end].y = phonePos.y + phone.offsetHeight * PHONE_OFFSET.y;
-    points[end].z = 0;
-
-    // pin first point to phonebase
-    points[0].x = baseAnchor.x;
-    points[0].y = baseAnchor.y;
-    points[0].z = 0;
-  }
-
-  // ===== DRAW =====
-  function drawCord(){
-    let d=`M ${points[0].x} ${points[0].y}`;
-    for(let i=1;i<points.length;i++){
-      const p = points[i];
-      const prev = points[i-1];
-      if(i<STRAIGHT_ENDS || i>points.length-STRAIGHT_ENDS){
-        d+=` L ${p.x} ${p.y}`;
-        continue;
-      }
-      const dx = p.x-prev.x;
-      const dy = p.y-prev.y;
-      const len = Math.hypot(dx,dy)||1;
-      const nx = -dy/len;
-      const ny = dx/len;
-      const phase = (i/points.length)*COILS*Math.PI*2;
-      const x = p.x + nx*Math.cos(phase)*COIL_RADIUS;
-      const y = p.y + ny*Math.cos(phase)*COIL_RADIUS + Math.sin(phase)*DEPTH;
-      d+=` L ${x} ${y}`;
-    }
-    cord.setAttribute("d",d);
-  }
-
-  function updatePhone(){
-    phone.style.left = phonePos.x+'px';
-    phone.style.top = phonePos.y+'px';
-  }
-
-  function animate(){
-    updatePhysics();
-    drawCord();
-    updatePhone();
-    requestAnimationFrame(animate);
-  }
   animate();
+});
 
+window.addEventListener("resize", updateResponsiveScale);
+
+function updateResponsiveScale(){
+  const DESIGN_HEIGHT = 900;
+  SCALE = Math.min(window.innerHeight / DESIGN_HEIGHT, 1);
+
+  guy.style.height = (900*SCALE) + "px";
+  guyarm.style.height = (900*SCALE) + "px";
+  earAnchor.style.left = (290*SCALE) + "px";
+  earAnchor.style.top = (430*SCALE) + "px";
+  phone.style.width = (240*SCALE) + "px";
+  phonebase.style.width = (250*SCALE) + "px";
+const CORD_THINNESS = 0.7; // lower = thinner cord when scaled
+
+cord.setAttribute("stroke-width", 6 * SCALE * CORD_THINNESS);
+
+// scale cord coil geometry
+COIL_RADIUS = COIL_RADIUS_BASE * SCALE * CORD_THINNESS;
+DEPTH = DEPTH_BASE * SCALE * CORD_THINNESS;
+
+  initRope();
+}
+
+// ===== ROPE =====
+function initRope() {
+  const baseRect = phonebase.getBoundingClientRect();
+  const anchorX = baseRect.left + baseRect.width*BASE_CORD_OFFSET.x;
+  const anchorY = baseRect.top + baseRect.height*BASE_CORD_OFFSET.y;
+
+  points = [];
+  prevPoints = [];
+  for(let i=0;i<SEGMENTS;i++){
+    const t = i/(SEGMENTS-1);
+    const x = anchorX*(1-t) + (phonePos.x + phone.offsetWidth*PHONE_CORD_OFFSET_FRONT.x)*t;
+    const y = anchorY*(1-t) + (phonePos.y + phone.offsetHeight*PHONE_CORD_OFFSET_FRONT.y)*t;
+    points.push({x,y,z:0});
+    prevPoints.push({x,y,z:0});
+  }
+}
+
+// ===== PHYSICS =====
+function updatePhysics() {
+  const baseRect = phonebase.getBoundingClientRect();
+  const anchor = {
+    x: baseRect.left + baseRect.width*BASE_CORD_OFFSET.x,
+    y: baseRect.top + baseRect.height*BASE_CORD_OFFSET.y
+  };
+  points[0].x = anchor.x;
+  points[0].y = anchor.y;
+
+  const phoneRect = phone.getBoundingClientRect();
+  const phoneCenter = {
+    x: phoneRect.left + phoneRect.width/2,
+    y: phoneRect.top + phoneRect.height/2
+  };
+  const baseCenter = {
+    x: baseRect.left + baseRect.width/2,
+    y: baseRect.top + baseRect.height/2
+  };
+  const distToBase = Math.hypot(phoneCenter.x-baseCenter.x, phoneCenter.y-baseCenter.y);
+
+  // ===== DOCK LOGIC =====
+  if(docked){
+    // docked phone smoothly follows base
+    phonePos.x = baseCenter.x - phone.offsetWidth/2;
+    phonePos.y = baseCenter.y - phone.offsetHeight/2;
+    phoneVel.x = 0;
+    phoneVel.y = 0;
+    phone.src = "phoneback.png";
+  } else if(!isMouseDown && !grabbedByGuy){
+    // gravity + damping when free
+    phoneVel.y += GRAVITY;
+    phoneVel.x *= DAMPING;
+    phoneVel.y *= DAMPING;
+    phonePos.x += phoneVel.x;
+    phonePos.y += phoneVel.y;
+    const FLOOR_Y = window.innerHeight - 50;
+    if(phonePos.y > FLOOR_Y - phone.offsetHeight){
+      phonePos.y = FLOOR_Y - phone.offsetHeight;
+      phoneVel.y *= -0.25;
+    }
+
+    // check if close enough to dock
+    if(distToBase < DOCK_RADIUS){
+      dockingProgress = Math.min(1,dockingProgress+DOCK_LERP);
+      if(dockingProgress>0.98){
+        docked = true;
+      }
+    }
+  }
+
+  // ===== GUY GRAB =====
+  const earRect = earAnchor.getBoundingClientRect();
+  const guyGrab = { x: earRect.left, y: earRect.top };
+  const distToEar = Math.hypot(phoneCenter.x-guyGrab.x, phoneCenter.y-guyGrab.y);
+
+if(!grabbedByGuy && !docked && distToEar < 120){
+  grabbedByGuy = true;
+  phoneVel.x = 0;
+  phoneVel.y = 0;
+  phoneRotation = EAR_ROTATION;
+  guyarm.style.display = "block";
+
+  // Show contact form
+  contactBlock.style.display = "block";
+}
+
+if(grabbedByGuy){
+
+  // If still close to the ear, snap phone into place
+  if(distToEar <= 160){
+    phonePos.x = guyGrab.x - phone.offsetWidth/2;
+    phonePos.y = guyGrab.y - phone.offsetHeight/2;
+  } else {
+    // Phone moved away from ear
+    grabbedByGuy = false;
+    guyarm.style.display = "none";
+    docked = false;
+    phoneRotation = 0;
+
+    // Hide contact form
+    contactBlock.style.display = "none";
+  }
+}
+
+  // ===== VERLET INTEGRATION =====
+  const end = points.length-1;
+  for(let i=1;i<end;i++){
+    const p = points[i];
+    const prev = prevPoints[i];
+    const vx = (p.x-prev.x)*DAMPING;
+    const vy = (p.y-prev.y)*DAMPING + GRAVITY;
+    const vz = (p.z-prev.z)*DAMPING;
+    prev.x=p.x; prev.y=p.y; prev.z=p.z;
+    p.x += vx; p.y += vy; p.z += vz;
+  }
+
+  // ===== CONSTRAINTS =====
+  for(let k=0;k<1200;k++){
+    points[0].x = anchor.x;
+    points[0].y = anchor.y;
+    const attachOffset = docked ? PHONE_CORD_OFFSET_BACK : PHONE_CORD_OFFSET_FRONT;
+    points[end].x = phonePos.x + phone.offsetWidth * attachOffset.x;
+    points[end].y = phonePos.y + phone.offsetHeight * attachOffset.y;
+
+    for(let i=0;i<end;i++){
+      const p1 = points[i];
+      const p2 = points[i+1];
+      const dx = p2.x-p1.x;
+      const dy = p2.y-p1.y;
+      const dz = p2.z-p1.z;
+      const dist = Math.sqrt(dx*dx+dy*dy+dz*dz)||1;
+      let stiffness = (i>end-TAIL_SEGMENTS)? TAIL_STIFFNESS: 1;
+      let diff = (dist-SEGMENT_LENGTH)/dist;
+      if(i!==0){ p1.x+=dx*0.5*diff*stiffness; p1.y+=dy*0.5*diff*stiffness; p1.z+=dz*0.5*diff*stiffness; }
+      if(i+1!==end){ p2.x-=dx*0.5*diff*stiffness; p2.y-=dy*0.5*diff*stiffness; p2.z-=dz*0.5*diff*stiffness; }
+    }
+  }
+}
+
+// ===== DRAW CORD =====
+function drawCord(){
+  let d = `M ${points[0].x} ${points[0].y}`;
+  for(let i=1;i<points.length;i++){
+    const p = points[i];
+    const prev = points[i-1];
+    if(i<STRAIGHT_SEGMENTS_BASE || i>points.length-TAIL_SEGMENTS){
+      d+=` L ${p.x} ${p.y}`; continue;
+    }
+    const dx = p.x-prev.x;
+    const dy = p.y-prev.y;
+    const len = Math.hypot(dx,dy)||1;
+    const nx = -dy/len;
+    const ny = dx/len;
+    const phase = (i/points.length)*COILS*Math.PI*2;
+    const x = p.x + nx*Math.cos(phase)*COIL_RADIUS;
+    const y = p.y + ny*Math.cos(phase)*COIL_RADIUS + Math.sin(phase)*DEPTH;
+    d+=` L ${x} ${y}`;
+  }
+  cord.setAttribute("d", d);
+}
+
+// ===== UPDATE PHONE =====
+function updatePhone(){
+  phone.style.left = phonePos.x + 'px';
+  phone.style.top = phonePos.y + 'px';
+  phone.style.transform = `rotate(${phoneRotation}deg)`;
+}
+
+// ===== ANIMATION LOOP =====
+function animate(){
+  updatePhysics();
+  drawCord();
+  updatePhone();
+  requestAnimationFrame(animate);
+}
+
+const form = document.getElementById("contactForm");
+const msg = document.getElementById("sentCheck");
+
+form.addEventListener("submit", function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(form);
+
+  fetch("send.php", {
+    method: "POST",
+    body: formData
+  })
+  .then(response => {
+    if (!response.ok) throw new Error("Network response failed");
+    return response.text();
+  })
+
+.then(() => {
+  form.reset();
+
+  // Hide contact form
+  contactBlock.style.display = "none";
+
+  // Reset phone state
+  grabbedByGuy = false;
+  guyarm.style.display = "none";
+  phoneRotation = 0;
+
+  // Optional: return phone to the base
+  docked = true;
+})
+  .catch(() => {
+    msg.style.display = "inline";
+    msg.style.color = "red";
+    msg.textContent = "Failed to send. Try again.";
+  });
 });
 </script>
-
 </body>
 </html>
