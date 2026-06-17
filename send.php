@@ -4,7 +4,7 @@ ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 // Recipient email
-$to = "arts@focalpointarts.org";
+$to = "darbyjahn@gmail.com";
 $subject = "Focal Point Arts – Website Contact";
 
 // Only handle POST requests
@@ -34,7 +34,7 @@ $body .= "Email: $email\n\n";
 $body .= "Message:\n$message";
 
 // Headers: From is your domain, Reply-To is user email
-$headers  = "From: Focal Point Arts <no-reply@focalpointarts.org>\r\n";
+$headers  = "From: Shrimplot <no-reply@shrimplot.com>\r\n";
 $headers .= "Reply-To: $email\r\n";
 $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
 
