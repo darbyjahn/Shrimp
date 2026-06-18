@@ -15,9 +15,10 @@ body {
 
 /* ---------- HEADER ---------- */
 header {
-  background: transparent;
+  background: white;
   color: #ff46A2;
-  padding: 1rem 1rem;
+  padding: 2rem 2rem;
+  z-index: 100;
 }
 
 h1 {
@@ -30,7 +31,9 @@ h1 {
 
 /* ---------- NAV ---------- */
 nav {
-  text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 nav a {
@@ -96,16 +99,18 @@ svg {
 #guy{
   position: fixed;
   left: 0;
-  top: 0;
+  bottom: 0;
   height: 900px;
+  z-index: 1;
+  pointer-events: none;
 }
 
 #guyarm{
   position: fixed;
   left: 0;
-  top: 0;
+  bottom: 0;
   height: 900px;
-  z-index: 10;
+  z-index: 10;     /* above guy */
   pointer-events: none;
 }
 
@@ -185,11 +190,11 @@ svg {
 /* ---------- MOBILE SAFETY + SCALE ---------- */
 @media (max-width: 768px) {
   #phone {
-    width: 140px !important;
+    width: 143px !important;
   }
 
   #phonebase {
-    width: 160px !important;
+    width: 150px !important;
     top: 10px;
     right: 10px;
   }
@@ -337,7 +342,7 @@ phone.addEventListener("pointerdown", (e) => {
   docked = false;
   dockingProgress = 0;
   phoneRotation = 0;
-  phone.src = "phone.png";
+  phone.src = "media/phone.png";
 
   offset.x = e.clientX - phonePos.x;
   offset.y = e.clientY - phonePos.y;
@@ -375,12 +380,59 @@ window.addEventListener("resize", updateResponsiveScale);
 
 function updateResponsiveScale(){
   const DESIGN_HEIGHT = 900;
-  SCALE = Math.min(window.innerHeight / DESIGN_HEIGHT, 1);
+const DESIGN_WIDTH = 1440;
 
-  guy.style.height = (900*SCALE) + "px";
-  guyarm.style.height = (900*SCALE) + "px";
-  earAnchor.style.left = (290*SCALE) + "px";
-  earAnchor.style.top = (430*SCALE) + "px";
+SCALE = Math.min(
+  window.innerHeight / DESIGN_HEIGHT,
+  window.innerWidth / DESIGN_WIDTH,
+  1
+);
+
+ if (window.innerWidth <= 768) {
+
+  const GUY_HEIGHT = Math.min(window.innerHeight * 0.65, 520);
+
+  guy.style.height = GUY_HEIGHT + "px";
+  guyarm.style.height = GUY_HEIGHT + "px";
+
+  guy.style.left = "0px";
+  guyarm.style.left = "0px";
+
+  guy.style.top = "";
+  guyarm.style.top = "";
+
+  guy.style.bottom = "0px";
+  guyarm.style.bottom = "0px";
+
+  // ear position relative to guy
+  earAnchor.style.left = (165 * GUY_HEIGHT / 520) + "px";
+
+  // distance from bottom of viewport
+  earAnchor.style.top =
+      (window.innerHeight - GUY_HEIGHT + 245 * GUY_HEIGHT / 520) + "px";
+
+}
+else {
+
+ guy.style.height = (900 * SCALE) + "px";
+guyarm.style.height = (900 * SCALE) + "px";
+
+const guyRect = guy.getBoundingClientRect();
+
+earAnchor.style.left =
+  (guyRect.left + 290 * SCALE) + "px";
+
+earAnchor.style.top =
+  (guyRect.top + 430 * SCALE) + "px"; 
+
+  guy.style.top = "0";
+  guyarm.style.top = "0";
+
+  guy.style.bottom = "";
+  guyarm.style.bottom = "";
+
+}
+
   phone.style.width = (240*SCALE) + "px";
   phonebase.style.width = (250*SCALE) + "px";
 const CORD_THINNESS = 0.7; // lower = thinner cord when scaled
