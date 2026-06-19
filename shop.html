@@ -52,7 +52,7 @@ h1 {
 .stage {
   width: 100vw;
   min-height: 100vh;
-  background-image: url("shopbg.png");
+  background-image: url("media/shopbg.png");
   background-size: cover;
   background-position: center;
   padding: 4rem 2rem;
@@ -161,6 +161,24 @@ h1 {
   cursor: pointer;
   padding: 0 10px;
 }
+
+@media (max-width: 768px) {
+  .cart {
+    width: 120px;
+    height: 95px;
+    bottom: 12px;
+    right: 12px;
+  }
+
+  /* IMPORTANT: prevents accidental tap-through */
+  .cart-back {
+    pointer-events: none;
+  }
+
+  .cart-items {
+    pointer-events: none;
+  }
+}
 </style>
 </head>
 
@@ -179,25 +197,25 @@ h1 {
 
 <div class="stage">
   <div class="products">
-    <div class="product-card" data-index="0"><img src="tshirt1.png"></div>
-    <div class="product-card" data-index="1"><img src="tshirt2.png"></div>
-    <div class="product-card" data-index="2"><img src="tshirt3.png"></div>
-    <div class="product-card" data-index="3"><img src="tshirt4.png"></div>
-    <div class="product-card" data-index="4"><img src="tshirt5.png"></div>
-    <div class="product-card" data-index="5"><img src="tshirt6.png"></div>
-    <div class="product-card" data-index="6"><img src="tshirt7.png"></div>
-    <div class="product-card" data-index="7"><img src="tshirt8.png"></div>
-    <div class="product-card" data-index="8"><img src="tshirt9.png"></div>
-    <div class="product-card" data-index="9"><img src="tshirt10.png"></div>
-    <div class="product-card" data-index="10"><img src="tshirt11.png"></div>
-    <div class="product-card" data-index="11"><img src="tshirt12.png"></div>
+    <div class="product-card" data-index="0"><img src="media/tshirt1.png"></div>
+    <div class="product-card" data-index="1"><img src="media/tshirt2.png"></div>
+    <div class="product-card" data-index="2"><img src="media/tshirt3.png"></div>
+    <div class="product-card" data-index="3"><img src="media/tshirt4.png"></div>
+    <div class="product-card" data-index="4"><img src="media/tshirt5.png"></div>
+    <div class="product-card" data-index="5"><img src="media/tshirt6.png"></div>
+    <div class="product-card" data-index="6"><img src="media/tshirt7.png"></div>
+    <div class="product-card" data-index="7"><img src="media/tshirt8.png"></div>
+    <div class="product-card" data-index="8"><img src="media/tshirt9.png"></div>
+    <div class="product-card" data-index="9"><img src="media/tshirt10.png"></div>
+    <div class="product-card" data-index="10"><img src="media/tshirt11.png"></div>
+    <div class="product-card" data-index="11"><img src="media/tshirt12.png"></div>
   </div>
 </div>
 
 <div class="cart" id="cart">
-  <img src="cartback.png" class="cart-back">
+  <img src="media/cartback.png" class="cart-back">
   <div class="cart-items" id="cartItems"></div>
-  <img src="cartfront.png" class="cart-front">
+  <img src="media/cartfront.png" class="cart-front">
 </div>
 
 <div id="modal" class="modal">
@@ -225,7 +243,7 @@ let activeProductIndex = null;
 const products = Array.from({ length: 12 }, (_, i) => ({
   name: `Fake Shirt #${i + 1}`,
   price: 25,
-  image: `tshirt${i + 1}.png`,
+  image: `media/tshirt${i + 1}.png`,
   size: "XL"
 }));
 
@@ -237,23 +255,38 @@ const modalImg = document.getElementById("carousel-img");
 /* ---------- CART CLICK NAV ---------- */
 let cartMoved = false;
 
-cart.addEventListener("mousedown", () => {
+const cartFront = document.querySelector(".cart-front");
+
+/* desktop */
+cartFront.addEventListener("mousedown", () => {
   cartMoved = false;
 });
 
-cart.addEventListener("mousemove", () => {
+cartFront.addEventListener("mousemove", () => {
   cartMoved = true;
 });
 
-cart.addEventListener("mouseup", () => {
-  if (!cartMoved) {
-    window.location.href = "cart.html";
-  }
+cartFront.addEventListener("mouseup", () => {
+  if (!cartMoved) window.location.href = "cart.html";
+});
+
+/* mobile */
+cartFront.addEventListener("touchstart", () => {
+  cartMoved = false;
+}, { passive: true });
+
+cartFront.addEventListener("touchmove", () => {
+  cartMoved = true;
+}, { passive: true });
+
+cartFront.addEventListener("touchend", () => {
+  if (!cartMoved) window.location.href = "cart.html";
 });
 
 /* ---------- GRID DRAG ---------- */
 cards.forEach((card, i) => {
   let startX, startY, moved = false;
+    let isTouch = false;
 
   card.addEventListener("mousedown", e => {
     startX = e.clientX;
@@ -286,6 +319,46 @@ cards.forEach((card, i) => {
     document.addEventListener("mousemove", move);
     document.addEventListener("mouseup", up);
   });
+    /* ---------- TOUCH DRAG (MOBILE ONLY ADDITION) ---------- */
+    card.addEventListener("touchstart", e => {
+      isTouch = true;
+
+      const t = e.touches[0];
+      startX = t.clientX;
+      startY = t.clientY;
+      moved = false;
+
+      function move(ev) {
+        const t2 = ev.touches[0];
+        const dx = t2.clientX - startX;
+        const dy = t2.clientY - startY;
+
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+
+        card.style.transform = `translate(${dx}px, ${dy}px)`;
+      }
+
+      function up(ev) {
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", up);
+        card.style.transform = "";
+
+        const t2 = ev.changedTouches[0];
+
+        const rect = cart.getBoundingClientRect();
+        const inCart =
+          t2.clientX > rect.left &&
+          t2.clientX < rect.right &&
+          t2.clientY > rect.top &&
+          t2.clientY < rect.bottom;
+
+        if (moved && inCart) dropIntoCart(products[i]);
+        else if (!moved) openModal(i);
+      }
+
+      document.addEventListener("touchmove", move, { passive: false });
+      document.addEventListener("touchend", up);
+    }, { passive: true });
 });
 
 /* ---------- MODAL DRAG ---------- */
