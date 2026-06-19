@@ -13,7 +13,7 @@
       overflow-x: hidden;
       height: 2000px;
       min-height: 100vh;
-      background-image: url("patternbg.png");
+      background-image: url("media/patternbg.png");
       background-size: cover;
     }
 
@@ -179,8 +179,8 @@
 
   <div class="cart-wrapper">
     <div class="cart-behind">
-      <img src="cart1.png" alt="Cart graphic" class="cart-base">
-      <img src="cartred.png" alt="Cart hover" class="cart-hover">
+      <img src="media/cart1.png" alt="Cart graphic" class="cart-base">
+      <img src="media/cartred.png" alt="Cart hover" class="cart-hover">
     </div>
 
     <div id="cart">
@@ -199,7 +199,7 @@
     const products = Array.from({ length: 12 }, (_, i) => ({
       name: `Fake Shirt #${i + 1}`,
       price: 25,
-      image: `tshirt${i + 1}.png`
+      image: `media/tshirt${i + 1}.png`
     }));
 
     let rawCart = JSON.parse(localStorage.getItem("cart")) || [];
