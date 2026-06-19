@@ -88,8 +88,12 @@ h1 {
   position: fixed;
   bottom: 220px;
   right: 30px;
+
   width: 350px;
   height: 280px;
+
+  flex-shrink: 0;
+  transform: none 
   z-index: 20;
 }
 
@@ -166,9 +170,19 @@ h1 {
   .cart {
     width: 120px;
     height: 95px;
-    bottom: 12px;
-    right: 12px;
+
+    bottom: 90px;
+    right: 14px;
+
+    transform: scale(0.9);
+    transform-origin: bottom right;
   }
+
+  .cart-back,
+  .cart-items {
+    pointer-events: none;
+  }
+}
 
   /* IMPORTANT: prevents accidental tap-through */
   .cart-back {
@@ -236,6 +250,18 @@ h1 {
 </div>
 
 <script>
+
+let isScrolling = false;
+
+let scrollTimeout;
+window.addEventListener("scroll", () => {
+  isScrolling = true;
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    isScrolling = false;
+  }, 120);
+});
+
 const sizes = ["S", "M", "L", "XL"];
 let currentSizeIndex = 3;
 let activeProductIndex = null;
@@ -321,6 +347,7 @@ cards.forEach((card, i) => {
   });
     /* ---------- TOUCH DRAG (MOBILE ONLY ADDITION) ---------- */
     card.addEventListener("touchstart", e => {
+      if (isScrolling) return;
       isTouch = true;
 
       const t = e.touches[0];
@@ -417,7 +444,10 @@ function dropIntoCart(product) {
     img.style.top = `-${w}px`;
 
     const dropIndex = cartItems.children.length - 1;
-    const baseY = 160 + Math.min(dropIndex, 6) * 10;
+    const isMobile = window.innerWidth <= 768;
+const scale = isMobile ? 0.35 : 1;
+
+const baseY = (160 * scale) + Math.min(dropIndex, 6) * (10 * scale);
 
     const wobbleStart = (Math.random() - 0.5) * 10;
     const wobbleEnd = (Math.random() - 0.5) * 20;
